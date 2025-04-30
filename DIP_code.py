@@ -26,7 +26,7 @@ def main():
         
     # out of curiosity, show image 9 and its histogram
     h = exSki.exposure.histogram(lImageSet[9], normalize=True)
-    figure, axes = plt.subplots(1,2)
+    figure, axes = plt.subplots(1,2, layout='tight')
     figure.suptitle('Image #9')
     axes[0].imshow(lImageSet[9], cmap='gray')
     axes[1].plot(h[1], h[0])
@@ -36,7 +36,7 @@ def main():
     # SOOO doing that makes the noise louder (and therefore kmeans doesn't work as well)... so no.
     lEqualizedImage = exSki.exposure.equalize_hist(lImageSet[9])
     h = exSki.exposure.histogram(lEqualizedImage, normalize=True)
-    figure, axes = plt.subplots(1,2)
+    figure, axes = plt.subplots(1,2, layout='tight')
     figure.suptitle('Equalized Image #9')
     axes[0].imshow(lEqualizedImage, cmap='gray')
     axes[1].plot(h[1], h[0])
@@ -45,8 +45,8 @@ def main():
     # let's try a median filter to remove noise
     lMedImage = exSki.filters.median(lImageSet[9])
     h = exSki.exposure.histogram(lMedImage, normalize=True)
-    figure, axes = plt.subplots(1,2)
-    figure.suptitle('Mean Filtered Image #9')
+    figure, axes = plt.subplots(1,2, layout='tight')
+    figure.suptitle('Median Filtered Image #9')
     axes[0].imshow(lMedImage, cmap='gray')
     axes[1].plot(h[1], h[0])
     plt.show()
