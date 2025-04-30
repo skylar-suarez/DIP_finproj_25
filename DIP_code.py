@@ -13,8 +13,11 @@ import matplotlib.pyplot as plt # For histogram visualization, etc.
 def main():
     # read in all tif images into a list
     lImageSet = list(exSki.io.imread_collection('images/*.tif', {'as_gray': True}))
-    exSki.io.imshow(lImageSet[9], cmap='gray')# TODO: Change to imageIO.
-    exSki.io.show() # TODO: Change to imageIO.
+    
+    # show a test image just because
+    exSki.io.imshow(lImageSet[9], cmap='gray')
+    plt.title('image #9')
+    exSki.io.show()
     
     # find the max image size in the collection
     lMaxImageRows, lMaxImageCols = 0, 0    
@@ -28,12 +31,23 @@ def main():
         lImageSet[iImageIndex] = exSki.transform.resize(lImageSet[iImageIndex], (lMaxImageRows, lMaxImageCols))
     
     # show the test image just because
-    exSki.io.imshow(lImageSet[9], cmap='gray')# TODO: Change to imageIO.
-    exSki.io.show() # TODO: Change to imageIO.
+    exSki.io.imshow(lImageSet[9], cmap='gray')
+    plt.title('image #9 resized')
+    exSki.io.show()
     
     # ok... now we want to just throw it into a model as it is, w/o pre-processing
         
-      
+    # actually I'm just going to feed one image to a kmeans clustering model and see if it can distinguish plaques  
+    lTestImage = lImageSet[9].reshape(-1,1)
+    from sklearn.cluster import KMeans
+    lKMeansModel = KMeans(n_clusters=2, random_state=42)
+    lKMeansModel.fit(lTestImage)
+    lKMeansPredictedLabels = lKMeansModel.predict(lTestImage).reshape(lImageSet[9].shape)
+    #lKMeansClusteredImage = np.zeros(lImageSet[9].shape)
+    #lKMeansClusteredImage = lKMeansPredictedLabels + 1
+    exSki.io.imshow(lKMeansPredictedLabels, cmap='plasma')
+    plt.title('image #9 clustered')
+    exSki.io.show()
     
     
     print()
