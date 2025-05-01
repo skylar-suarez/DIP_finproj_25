@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-BIOE 5100 Final Project
+BIOE 5100 Final Project - Spring 2025
+Skylar Suarez & Larry Baker 
+
+Variable naming convention: lLocalVariable, fUserDefinedFunction, exExternalLibrary, aArgument
 """
 
 import skimage as exSki # https://scikit-image.org/docs/stable/api/skimage.html
@@ -16,48 +19,46 @@ def main():
     lImageSet = list(exSki.io.imread_collection('images/*.tif', {'as_gray': True}))
     
     # show a test image just because
-    exSki.io.imshow(lImageSet[9], cmap='gray')
+    plt.imshow(lImageSet[9], cmap='gray')
     plt.title('image #9')
-    exSki.io.show()
+    plt.show()
     
     lImageSet = fUpsizeImagesToLargestInSet(lImageSet)
     
     # ok... now we want to just throw it into a model as it is, w/o pre-processing, see what happens
         
     # out of curiosity, show image 9 and its histogram
-    h = exSki.exposure.histogram(lImageSet[9], normalize=True)
-    figure, axes = plt.subplots(1,2, layout='tight')
-    figure.suptitle('Image #9')
-    axes[0].imshow(lImageSet[9], cmap='gray')
-    axes[1].plot(h[1], h[0])
-    plt.show()
+    fDisplayImageAndItsHistogram(lImageSet[9], 'Image #9')
     
     # try histogram equalization for higher contrast
     # SOOO doing that makes the noise louder (and therefore kmeans doesn't work as well)... so no.
     lEqualizedImage = exSki.exposure.equalize_hist(lImageSet[9])
-    h = exSki.exposure.histogram(lEqualizedImage, normalize=True)
-    figure, axes = plt.subplots(1,2, layout='tight')
-    figure.suptitle('Equalized Image #9')
-    axes[0].imshow(lEqualizedImage, cmap='gray')
-    axes[1].plot(h[1], h[0])
-    plt.show()
-    
+    fDisplayImageAndItsHistogram(lEqualizedImage, 'Equalized Image #9')
+        
     # let's try a median filter to remove noise
     lMedImage = exSki.filters.median(lImageSet[9])
-    h = exSki.exposure.histogram(lMedImage, normalize=True)
-    figure, axes = plt.subplots(1,2, layout='tight')
-    figure.suptitle('Median Filtered Image #9')
-    axes[0].imshow(lMedImage, cmap='gray')
-    axes[1].plot(h[1], h[0])
-    plt.show()
+    fDisplayImageAndItsHistogram(lMedImage, 'Median Filtered Image #9')
     
+    # let's try a gaussian filter to remove noise
+    lGaussImage = exSki.filters.gaussian(lImageSet[9], 6.0)
+    fDisplayImageAndItsHistogram(lGaussImage, 'Gaussian Filtered Image, sigma = 6')
+
+        
     
     # I'm just going to feed one image to a kmeans clustering model and see if it can distinguish plaques  
-    lTestImage = lMedImage
+    lTestImage = lImageSet[9]
     lKMeansClusteredImage = fDoKMeansClusteringOnImage(lTestImage, 2)
-    exSki.io.imshow(lKMeansClusteredImage, cmap='plasma')
+    plt.imshow(lKMeansClusteredImage, cmap='plasma')
     plt.title('image #9 clustered')
-    exSki.io.show()
+    plt.show()
+    
+    lTestImage = lGaussImage
+    lKMeansClusteredImage = fDoKMeansClusteringOnImage(lTestImage, 2)
+    fig, axs = plt.subplots(1,1)
+    axs.imshow(lImageSet[9], cmap='gray')
+    axs.imshow(lKMeansClusteredImage, cmap='viridis', alpha=0.05)
+    plt.title('gaussian image #9 clustered')
+    plt.show()
     
     
     print()
@@ -76,6 +77,14 @@ def fUpsizeImagesToLargestInSet(aImageSet):
     for iImageIndex in range(len(aImageSet)): # now that we have the max sizes, upsize everything to it
         aImageSet[iImageIndex] = exSki.transform.resize(aImageSet[iImageIndex], (lMaxImageRows, lMaxImageCols))
     return aImageSet
+
+def fDisplayImageAndItsHistogram(aImage, aTitle):
+    lHistInfo = exSki.exposure.histogram(aImage, normalize=True)
+    lFigure, lAxes = plt.subplots(1,2, layout='tight')
+    lFigure.suptitle(aTitle)
+    lAxes[0].imshow(aImage, cmap='gray')
+    lAxes[1].plot(lHistInfo[1], lHistInfo[0])
+    plt.show()
 
 def fDoKMeansClusteringOnImage(aImage, aK):
     lImageShape = aImage.shape
