@@ -28,7 +28,7 @@ def main():
     # ok... now we want to just throw it into a model as it is, w/o pre-processing, see what happens
         
     # out of curiosity, show image 9 and its histogram
-    fDisplayImageAndItsHistogram(lImageSet[9], 'Image #9')
+    #fDisplayImageAndItsHistogram(lImageSet[9], 'Image #9')
     
     # try histogram equalization for higher contrast
     # SOOO doing that makes the noise louder (and therefore kmeans doesn't work as well)... so no.
@@ -40,8 +40,8 @@ def main():
     fDisplayImageAndItsHistogram(lMedImage, 'Median Filtered Image #9')
     
     # let's try a gaussian filter to remove noise
-    lGaussImage = exSki.filters.gaussian(lImageSet[9], 6.0)
-    fDisplayImageAndItsHistogram(lGaussImage, 'Gaussian Filtered Image, sigma = 6')
+    lGaussImage = exSki.filters.gaussian(lImageSet[9], 3.0)
+    fDisplayImageAndItsHistogram(lGaussImage, 'Gaussian Filtered Image, sigma = 3')
 
         
     
@@ -56,9 +56,24 @@ def main():
     lKMeansClusteredImage = fDoKMeansClusteringOnImage(lTestImage, 2)
     fig, axs = plt.subplots(1,1)
     axs.imshow(lImageSet[9], cmap='gray')
-    axs.imshow(lKMeansClusteredImage, cmap='viridis', alpha=0.05)
+    axs.imshow(lKMeansClusteredImage, cmap='plasma', alpha=0.05)
     plt.title('gaussian image #9 clustered')
     plt.show()
+    
+    
+    # FIRST, find image w/o ab (5 works)
+    
+    # do kmeans on an image w/o ab, see how different the clustered images are, maybe that can be used for classification?
+    lTestNoABGaussImage = exSki.filters.gaussian(lImageSet[5], 3.0)
+    lNoABKMeansClusteredImage = fDoKMeansClusteringOnImage(lTestNoABGaussImage, 2)
+       
+    fig, axes = plt.subplots(2,1, layout='tight')
+    axes[0].imshow(lKMeansClusteredImage, cmap='plasma')
+    axes[1].imshow(lNoABKMeansClusteredImage, cmap='plasma')
+    plt.title('comparing ab to no ab clustered images, both gauss 6.0')
+    plt.show()
+    
+    # do GLCM on image 9, see what the resulting matrix looks like compared to an image w/o ab (find one)
     
     
     print()
