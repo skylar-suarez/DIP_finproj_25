@@ -74,7 +74,9 @@ def main():
     plt.show()
     
     # do GLCM on image 9, see what the resulting matrix looks like compared to an image w/o ab (find one)
-    
+    lGLCM = exSki.feature.graycomatrix(lImageSet[9], [1], [0], 65535)
+    plt.imshow(lGLCM, cmap='gray')
+    plt.show()
     
     print()
 
@@ -90,7 +92,7 @@ def fUpsizeImagesToLargestInSet(aImageSet):
         if iImage.shape[0] > lMaxImageRows: lMaxImageRows = iImage.shape[0]
         if iImage.shape[1] > lMaxImageCols: lMaxImageCols = iImage.shape[1]
     for iImageIndex in range(len(aImageSet)): # now that we have the max sizes, upsize everything to it
-        aImageSet[iImageIndex] = exSki.transform.resize(aImageSet[iImageIndex], (lMaxImageRows, lMaxImageCols))
+        aImageSet[iImageIndex] = exSki.transform.resize(aImageSet[iImageIndex], (lMaxImageRows, lMaxImageCols), preserve_range=True).astype(int)
     return aImageSet
 
 def fDisplayImageAndItsHistogram(aImage, aTitle):
