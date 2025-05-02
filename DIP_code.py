@@ -3,7 +3,7 @@
 BIOE 5100 Final Project - Spring 2025
 Skylar Suarez & Larry Baker 
 
-Variable naming convention: lLocalVariable, fUserDefinedFunction, exExternalLibrary, aArgument
+Variable naming convention: lLocalVariable, fUserDefinedFunction, exExternalLibrary, aArgument, iIterator
 """
 
 import skimage as exSki # https://scikit-image.org/docs/stable/api/skimage.html
@@ -17,6 +17,9 @@ import matplotlib.pyplot as plt # For histogram visualization, etc.
 def main():
     # read in all tif images into a list
     lImageSet = list(exSki.io.imread_collection('images/*.tif', {'as_gray': True}))
+    
+    # exSki.io.imshow_collection(lImageSet, plugin='matplotlib', cmap='gray')
+    # exSki.io.show()
     
     # show a test image just because
     plt.imshow(lImageSet[9], cmap='gray')
@@ -32,21 +35,21 @@ def main():
     
     # try histogram equalization for higher contrast
     # SOOO doing that makes the noise louder (and therefore kmeans doesn't work as well)... so no.
-    lEqualizedImage = exSki.exposure.equalize_hist(lImageSet[9])
+    lEqualizedImage = exSki.exposure.equalize_hist(lImageSet[16])
     fDisplayImageAndItsHistogram(lEqualizedImage, 'Equalized Image #9')
         
     # let's try a median filter to remove noise
-    lMedImage = exSki.filters.median(lImageSet[9])
+    lMedImage = exSki.filters.median(lImageSet[16])
     fDisplayImageAndItsHistogram(lMedImage, 'Median Filtered Image #9')
     
     # let's try a gaussian filter to remove noise
-    lGaussImage = exSki.filters.gaussian(lImageSet[9], 3.0)
-    fDisplayImageAndItsHistogram(lGaussImage, 'Gaussian Filtered Image, sigma = 3')
+    lGaussImage = exSki.filters.gaussian(lImageSet[16], 0.5)
+    fDisplayImageAndItsHistogram(lGaussImage, 'Gaussian Filtered Image, sigma = 0.5')
 
         
     
     # I'm just going to feed one image to a kmeans clustering model and see if it can distinguish plaques  
-    lTestImage = lImageSet[9]
+    lTestImage = lImageSet[16]
     lKMeansClusteredImage = fDoKMeansClusteringOnImage(lTestImage, 2)
     plt.imshow(lKMeansClusteredImage, cmap='plasma')
     plt.title('image #9 clustered')
@@ -55,7 +58,7 @@ def main():
     lTestImage = lGaussImage
     lKMeansClusteredImage = fDoKMeansClusteringOnImage(lTestImage, 2)
     fig, axs = plt.subplots(1,1)
-    axs.imshow(lImageSet[9], cmap='gray')
+    axs.imshow(lImageSet[16], cmap='gray')
     axs.imshow(lKMeansClusteredImage, cmap='plasma', alpha=0.05)
     plt.title('gaussian image #9 clustered')
     plt.show()
@@ -64,17 +67,18 @@ def main():
     # FIRST, find image w/o ab (5 works)
     
     # do kmeans on an image w/o ab, see how different the clustered images are, maybe that can be used for classification?
-    lTestNoABGaussImage = exSki.filters.gaussian(lImageSet[5], 3.0)
+    lTestNoABGaussImage = exSki.filters.gaussian(lImageSet[5], 0.5)
     lNoABKMeansClusteredImage = fDoKMeansClusteringOnImage(lTestNoABGaussImage, 2)
        
     fig, axes = plt.subplots(2,1, layout='tight')
     axes[0].imshow(lKMeansClusteredImage, cmap='plasma')
     axes[1].imshow(lNoABKMeansClusteredImage, cmap='plasma')
-    plt.title('comparing ab to no ab clustered images, both gauss 6.0')
+    plt.title('comparing ab to no ab clustered images, both gauss 0.5')
     plt.show()
     
     # do GLCM on image 9, see what the resulting matrix looks like compared to an image w/o ab (find one)
-    lGLCM = exSki.feature.graycomatrix(lImageSet[9], [1], [0], 65535)
+    lGLCM = exSki.feature.graycomatrix(lImageSet[16], distances=[1], angles=[0], levels=np.max(lImageSet[9])+1)
+    lGLCM = lGLCM[:, :, 0, 0]
     plt.imshow(lGLCM, cmap='gray')
     plt.show()
     
