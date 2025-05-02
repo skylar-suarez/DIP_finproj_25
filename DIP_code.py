@@ -6,88 +6,119 @@ Skylar Suarez & Larry Baker
 Variable naming convention: lLocalVariable, fUserDefinedFunction, exExternalLibrary, aArgument, iIterator
 """
 
-import skimage as exSki # https://scikit-image.org/docs/stable/api/skimage.html
-import imageio.v3 as exIio # Recommended to use imageIO for io functionality instead of SKImage, since SKImage's IO is now a wrapper for ImageIO.
-
+import skimage as exSki 
 import numpy as np
 from sklearn.cluster import KMeans
-from numpy import fft # I don't think it matters whether we use NumPy's implementation of FFT or SciPy's.
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt # For histogram visualization, etc.
 
 def main():
     # read in all tif images into a list
     lImageSet = list(exSki.io.imread_collection('images/*.tif', {'as_gray': True}))
     
+    # show the entire collection for presentation purposes
     # exSki.io.imshow_collection(lImageSet, plugin='matplotlib', cmap='gray')
     # exSki.io.show()
-    
-    # show a test image just because
-    plt.imshow(lImageSet[9], cmap='gray')
-    plt.title('image #9')
-    plt.show()
-    
-    lImageSet = fUpsizeImagesToLargestInSet(lImageSet)
-    
-    # ok... now we want to just throw it into a model as it is, w/o pre-processing, see what happens
         
-    # out of curiosity, show image 9 and its histogram
-    #fDisplayImageAndItsHistogram(lImageSet[9], 'Image #9')
+    lImageSet, lM, lN = fUpsizeImagesToLargestInSet(lImageSet)
     
-    # try histogram equalization for higher contrast
-    # SOOO doing that makes the noise louder (and therefore kmeans doesn't work as well)... so no.
-    lEqualizedImage = exSki.exposure.equalize_hist(lImageSet[16])
-    fDisplayImageAndItsHistogram(lEqualizedImage, 'Equalized Image #9')
+    # make the vector of whether the images have AB or not (1 = AB, 0 = no AB)
+    lImageSetClassifications = np.ones(len(lImageSet), dtype=int)
+    lImageSetClassifications[[5,6,13,14,21,22,28,29,33,34,36,37,38,39,41,42,44,45,46,47,48]] = 0
+    
+    # display which images are AB and which are not
+    plt.figure(figsize=(15, 1.5))
+    plt.plot(range(len(lImageSet)), lImageSetClassifications, 'o')
+    plt.xticks(range(len(lImageSet)))
+    plt.yticks([0,1])
+    plt.title('1 = AB, 0 = no AB')
+    plt.show()
+    
+    #%% TESTING STUFF ON A SAMPLE IMAGE, for presentation purposes
+    lTestImage = lImageSet[9]
+    
+    # # try histogram equalization for higher contrast
+    # # increasing contrast amplifies the speckling and makes kmeans worse
+    # lEqualizedImage = exSki.exposure.equalize_hist(lTestImage)
+    # fDisplayImageAndItsHistogram(lEqualizedImage, 'Equalized Test Image')
         
-    # let's try a median filter to remove noise
-    lMedImage = exSki.filters.median(lImageSet[16])
-    fDisplayImageAndItsHistogram(lMedImage, 'Median Filtered Image #9')
+    # # try a median filter to remove noise
+    # lMedImage = exSki.filters.median(lTestImage)
+    # fDisplayImageAndItsHistogram(lMedImage, 'Median Filtered Test Image')
     
-    # let's try a gaussian filter to remove noise
-    lGaussImage = exSki.filters.gaussian(lImageSet[16], 0.5)
-    fDisplayImageAndItsHistogram(lGaussImage, 'Gaussian Filtered Image, sigma = 0.5')
-
+    # # try a gaussian filter to lessen speckling impact
+    lGaussSigma = 1
+    # lTestGaussImage = exSki.filters.gaussian(lTestImage, sigma=lGaussSigma)
+    # fDisplayImageAndItsHistogram(lTestGaussImage, f'Gaussian Filtered Test Image, sigma = {lGaussSigma}')
+    
+    # # try doing kmeans clustering to an image before and after gaussian filtering to compare
+    # lKMeansTestImage = fDoKMeansClusteringOnImage(lTestImage, 2)
+    # lKMeansTestGaussImage = fDoKMeansClusteringOnImage(lTestGaussImage, 2)
+    # lFig, lAxes = plt.subplots(1,3, layout='tight')
+    # lAxes[0].imshow(lTestImage, cmap='gray')
+    # lAxes[0].set_title('Test Image')
+    # lAxes[1].imshow(lKMeansTestImage, cmap='plasma')
+    # lAxes[1].set_title('Clusters of Test Image')
+    # lAxes[2].imshow(lKMeansTestGaussImage, cmap='plasma')
+    # lAxes[2].set_title(f'Clusters of Gaussian Filtered\nTest Image (sigma={lTestImageGaussSigma})')
+    # plt.show()
         
+    #%% FIRST TEST FOR CLASSIFICATION: GAUSS FILTERING -> KMEANS CLUSTERING -> LOGISTIC REGRESSION
+
+    # make the KMeans cluster set be a matrix where each column is the clustering of an image that has been gauss filtered
+    lKMeansClusterSet = np.zeros((lM*lN, len(lImageSet)))
+    for iImageIndex in range(len(lImageSet)):
+        lGaussImage = exSki.filters.gaussian(lImageSet[iImageIndex], lGaussSigma) 
+        lKMeansClusteredImage = fDoKMeansClusteringOnImage(lGaussImage, 2)
+        lKMeansClusteredImage = lKMeansClusteredImage.reshape(-1, 1)
+        lKMeansClusterSet[:, iImageIndex] = lKMeansClusteredImage[:, 0]
     
-    # I'm just going to feed one image to a kmeans clustering model and see if it can distinguish plaques  
-    lTestImage = lImageSet[16]
-    lKMeansClusteredImage = fDoKMeansClusteringOnImage(lTestImage, 2)
-    plt.imshow(lKMeansClusteredImage, cmap='plasma')
-    plt.title('image #9 clustered')
-    plt.show()
+    lKMeansClusterSet = StandardScaler().fit_transform(lKMeansClusterSet)
+    lKMeansClusterSet = lKMeansClusterSet.transpose() # make each row an image whose clusterings are the features
     
-    lTestImage = lGaussImage
-    lKMeansClusteredImage = fDoKMeansClusteringOnImage(lTestImage, 2)
-    fig, axs = plt.subplots(1,1)
-    axs.imshow(lImageSet[16], cmap='gray')
-    axs.imshow(lKMeansClusteredImage, cmap='plasma', alpha=0.05)
-    plt.title('gaussian image #9 clustered')
-    plt.show()
+    lKMCTrainDataSet, lKMCTestDataSet, lKMCTrainClassSet, lKMCTestClassSet = train_test_split(lKMeansClusterSet, lImageSetClassifications, train_size=0.8)
+    
+    lGLCM_LRPredLabels, lGLCM_LRAccuracyScore = fDoLogisticRegressionClassification(lKMCTrainDataSet, lKMCTrainClassSet, lKMCTestDataSet, lKMCTestClassSet)
+    
+    # plot the predicted vs 'true' classifications
     
     
-    # FIRST, find image w/o ab (5 works)
+    #%% SECOND TEST FOR CLASSIFICATION: GRAY-LEVEL CO-OCCURRENCE MATRIX TEXTURE PROPERTIES -> LOGISTIC REGRESSION
+
+    # setting the GLCM levels
+    lMaxIntLevel = 0;        
+    for iImage in lImageSet:
+        lCurrentMaxInt = np.max(iImage)
+        if lCurrentMaxInt > lMaxIntLevel: lMaxIntLevel = lCurrentMaxInt
+    lGLCMlevels = lMaxIntLevel + 1
     
-    # do kmeans on an image w/o ab, see how different the clustered images are, maybe that can be used for classification?
-    lTestNoABGaussImage = exSki.filters.gaussian(lImageSet[5], 0.5)
-    lNoABKMeansClusteredImage = fDoKMeansClusteringOnImage(lTestNoABGaussImage, 2)
-       
-    fig, axes = plt.subplots(2,1, layout='tight')
-    axes[0].imshow(lKMeansClusteredImage, cmap='plasma')
-    axes[1].imshow(lNoABKMeansClusteredImage, cmap='plasma')
-    plt.title('comparing ab to no ab clustered images, both gauss 0.5')
-    plt.show()
+    # getting the GLCM properties for each image
+    lGLCMSet = np.zeros((len(lImageSet), 4))  
+    for iImageIndex in range(len(lImageSet)):
+        lGLCM = exSki.feature.graycomatrix(lImageSet[iImageIndex], distances=[1], angles=[0], levels=lGLCMlevels)
+        lGLCMSet[iImageIndex, 0] = exSki.feature.graycoprops(lGLCM, 'ASM')
+        lGLCMSet[iImageIndex, 1] = exSki.feature.graycoprops(lGLCM, 'contrast')
+        lGLCMSet[iImageIndex, 2] = exSki.feature.graycoprops(lGLCM, 'correlation')
+        lGLCMSet[iImageIndex, 3] = exSki.feature.graycoprops(lGLCM, 'dissimilarity')
+        
+    lGLCMSet = StandardScaler().fit_transform(lGLCMSet)
+        
+    lGLCMTrainDataSet, lGLCMTestDataSet, lGLCMTrainClassSet, lGLCMTestClassSet = train_test_split(lGLCMSet, lImageSetClassifications, train_size=0.8)
     
-    # do GLCM on image 9, see what the resulting matrix looks like compared to an image w/o ab (find one)
-    lGLCM = exSki.feature.graycomatrix(lImageSet[16], distances=[1], angles=[0], levels=np.max(lImageSet[9])+1)
-    lGLCM = lGLCM[:, :, 0, 0]
-    plt.imshow(lGLCM, cmap='gray')
-    plt.show()
+    lGLCM_LRPredLabels, lGLCM_LRAccuracyScore = fDoLogisticRegressionClassification(lGLCMTrainDataSet, lGLCMTrainClassSet, lGLCMTestDataSet, lGLCMTestClassSet)
     
-    print()
+    # plot the predicted vs 'true' classifications
+    
+    
+    
+    
 
 
 
-
-
+#%% FUNCTIONS
 
 def fUpsizeImagesToLargestInSet(aImageSet): 
     lMaxImageRows, lMaxImageCols = 0, 0    
@@ -96,8 +127,9 @@ def fUpsizeImagesToLargestInSet(aImageSet):
         if iImage.shape[0] > lMaxImageRows: lMaxImageRows = iImage.shape[0]
         if iImage.shape[1] > lMaxImageCols: lMaxImageCols = iImage.shape[1]
     for iImageIndex in range(len(aImageSet)): # now that we have the max sizes, upsize everything to it
+        aImageSet[iImageIndex] = exSki.exposure.rescale_intensity(aImageSet[iImageIndex], out_range = (0, 255)) # make them 8-bit to prevent memory problems
         aImageSet[iImageIndex] = exSki.transform.resize(aImageSet[iImageIndex], (lMaxImageRows, lMaxImageCols), preserve_range=True).astype(int)
-    return aImageSet
+    return aImageSet, lMaxImageRows, lMaxImageCols
 
 def fDisplayImageAndItsHistogram(aImage, aTitle):
     lHistInfo = exSki.exposure.histogram(aImage, normalize=True)
@@ -113,6 +145,22 @@ def fDoKMeansClusteringOnImage(aImage, aK):
     lKMeansModel = KMeans(n_clusters=aK, random_state=42)
     lKMeansModel.fit(lImage)
     return lKMeansModel.predict(lImage).reshape(lImageShape)
+
+def fDoLogisticRegressionClassification(aTrainX, aTrainY, aTestX, aTestY):
+    lLRModel = LogisticRegression()
+    lLRModel.fit(aTrainX, aTrainY)
+    lPredictedLabels = lLRModel.predict(aTestX)
+    return lPredictedLabels, accuracy_score(aTestY, lPredictedLabels)
     
 if __name__=="__main__":
     main()
+
+
+# lGLCMlevels = lMaxIntLevel + 1
+# lGLCMSet = np.zeros((lGLCMlevels**2, len(lImageSet)))  
+# for iImageIndex in range(len(lImageSet)):
+#     # lGLCMlevels = np.max(lImageSet[iImageIndex])+1
+#     lGLCM = exSki.feature.graycomatrix(lImageSet[iImageIndex], distances=[1], angles=[0], levels=lGLCMlevels)
+#     lGLCM = lGLCM[:, :, 0, 0]
+#     lGLCM = lGLCM.reshape(-1, 1)
+#     lGLCMSet[0:lGLCMlevels**2, iImageIndex] = lGLCM[:, 0]
