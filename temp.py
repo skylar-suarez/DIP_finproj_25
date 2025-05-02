@@ -60,22 +60,24 @@ def histeresisThreshold(aImage, lowThreshold, highThreshold): # See: https://sci
     plt.show()
     return
 
+def imread_convert(f):
+    return ski.io.imread(f).astype(np.uint16)
 
 # Importing images from dataset.
 directory = 'C:/Users/Larry/Documents/GitHub/DIP_finproj_25/images/*.tif'
-imageSet = ski.io.imread_collection(directory)
+imageSet = ski.io.ImageCollection(directory, load_func = imread_convert)
 
 # Outputting image(s).
-testImage = ski.img_as_float64(imageSet[9]) # Using a color image from the dataset. 
-# testImage = ski.color.rgb2gray(imageSet[9]) # TODO: Figure out why rgb2gray doesn't work. Probably doesn't matter if using imageio instead of skimage.io.
-ski.io.imshow(testImage, cmap='gray')
+# testImage = ski.img_as_float64(imageSet[9]) # Using a color image from the dataset. 
+testImage = imageSet[9]
+ski.io.imshow(testImage, cmap = 'gray')
 ski.io.show() 
 
-# # # Outputting frequency spectrum of image(s) to determine if frequency filtering is sensible. 
-# # testFFTOutput = np.abs(fft.fftshift(fft.fft2(testImage))) # fft2() is 2D FFT, fftshift() used for same rationale as in MATLAB.
-# # ski.io.imshow(np.log(testFFTOutput), cmap = 'Blues') # Log needs to be used here or else fft is uninterpretable.
-# # ski.io.show()
-# # # From the above, I don't think we should do frequency filtering, but instead go straight to smoothing, edge detection, and then regression/whatever.
+# # Outputting frequency spectrum of image(s) to determine if frequency filtering is sensible. 
+# testFFTOutput = np.abs(fft.fftshift(fft.fft2(testImage))) # fft2() is 2D FFT, fftshift() used for same rationale as in MATLAB.
+# ski.io.imshow(np.log(testFFTOutput), cmap = 'Blues') # Log needs to be used here or else fft is uninterpretable.
+# ski.io.show()
+# # From the above, I don't think we should do frequency filtering, but instead go straight to smoothing, edge detection, and then regression/whatever.
 
 # Applying a median filter.
 medianFilteredImg = medianFiltering(testImage)
@@ -84,10 +86,34 @@ medianFilteredImg = medianFiltering(testImage)
 histEqualizedImg = histEqualization(testImage)
 
 # Attempting Multi-Otsu thresholding.
-multiOtsuImg = multiOtsuThreshold(testImage, numClasses = 3)
+multiOtsuImg = multiOtsuThreshold(medianFilteredImg, numClasses = 2)
 
 # Attempting regular old hysteresis thresholding just to see what happens.
-hysteresisThresholdImg = histeresisThreshold(medianFilteredImg, 100, 150)
+hysteresisThresholdImg = histeresisThreshold(testImage, 200, 250)
+
+# My attempt at playing around with GLCM with both the test image and random noise.
+alevels = int(np.ceil(np.max(testImage)) + 1)
+lGLCM = ski.feature.graycomatrix(testImage, distances = [1], angles = [0], levels = alevels)
+
+GLCM_correlation = ski.feature.graycoprops(lGLCM, 'correlation')
+GLCM_dissimilarity = ski.feature.graycoprops(lGLCM, 'dissimilarity')
+GLCM_contrast = ski.feature.graycoprops(lGLCM, 'contrast')
+
+# testImageRescaled = ski.exposure.rescale_intensity(testImage, out_range = (0, 255))
+# testImageRescaled = np.uint16(testImageRescaled)
+# plt.imshow(testImageRescaled)
+# plt.show()
+# lGLCM = ski.feature.graycomatrix(testImageRescaled, distances = [5], angles = [0], levels = alevels)
+
+randomImage = np.uint16((np.random.rand(400, 400) * 1000)) # Testing with an 400 x 400 image of noise.
+alevels_rand = int(np.ceil(np.max(randomImage)) + 1)
+plt.imshow(randomImage)
+plt.show()
+lGLCM_rand = ski.feature.graycomatrix(randomImage, distances = [1], angles = [0], levels = alevels_rand)
+
+GLCM_correlation_rand = ski.feature.graycoprops(lGLCM_rand, 'correlation')
+GLCM_dissimilarity_rand = ski.feature.graycoprops(lGLCM_rand, 'dissimilarity')
+GLCM_contrast_rand = ski.feature.graycoprops(lGLCM_rand, 'contrast')
 
 
 # # Trying gamma correction on the histogram-equalized test image (doesn't work yet).
@@ -121,6 +147,7 @@ hysteresisThresholdImg = histeresisThreshold(medianFilteredImg, 100, 150)
 
 # gainSlider.on_changed(updateGammaPlot)
 # plt.show()
+
 
 
 # # Canny edge-detection algorithm. Trying on the gamma-corrected, histogram-equalized version of the image.
