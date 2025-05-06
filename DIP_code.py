@@ -18,10 +18,9 @@ from sklearn.cluster import KMeans # For implementing K-Means clustering on the 
 from sklearn.model_selection import train_test_split # For linear regression testing.
 from sklearn.preprocessing import StandardScaler # For use with the GLCM parameters.
 from sklearn.linear_model import LogisticRegression # For linear regression testing.
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeClassifier # For decision tree classification testing.
 from sklearn.model_selection import cross_val_score # For linear regression testing.
 from sklearn.metrics import accuracy_score # For evaluationg trained regression models.
-# from sklearn.decomposition import PCA
 
 #%% 
 def main():
@@ -32,7 +31,7 @@ def main():
     # exSki.io.imshow_collection(lImageSet, plugin='matplotlib', cmap='gray')
     # exSki.io.show()
         
-    lImageSet, lM, lN = fUpsizeImagesToLargestInSet(lImageSet)
+    lImageSet, lM, lN = fResizeImagesInSet(lImageSet, 'min')
     
     # Make the vector of whether the images have AB or not (1 = AB, 0 = no AB).
     lImageSetClassifications = np.ones(len(lImageSet), dtype=int)
@@ -47,7 +46,7 @@ def main():
     plt.show()
     
     #%% TESTING STUFF ON A SAMPLE IMAGE, for presentation purposes.
-    lTestImage = lImageSet[9]
+    lTestImage = lImageSet[15]
     
     # Try histogram equalization for higher contrast -
     # Increasing contrast amplifies the speckling and makes kmeans worse.
@@ -197,16 +196,21 @@ def main():
 
 #%% FUNCTIONS
 
-def fUpsizeImagesToLargestInSet(aImageSet): 
-    lMaxImageRows, lMaxImageCols = 0, 0    
-    for iImage in aImageSet: # find the largest image size in the set
-        lCurrentImageRows, lCurrentImageCols = iImage.shape[0], iImage.shape[1]
-        if iImage.shape[0] > lMaxImageRows: lMaxImageRows = iImage.shape[0]
-        if iImage.shape[1] > lMaxImageCols: lMaxImageCols = iImage.shape[1]
-    for iImageIndex in range(len(aImageSet)): # now that we have the max sizes, upsize everything to it
+def fResizeImagesInSet(aImageSet, mode='min'): 
+    if mode=='max':
+        lTargetImageRows, lTargetImageCols = 0, 0    
+        for iImage in aImageSet: # find the largest image size in the set
+            if iImage.shape[0] > lTargetImageRows: lTargetImageRows = iImage.shape[0]
+            if iImage.shape[1] > lTargetImageCols: lTargetImageCols = iImage.shape[1]
+    else:
+        lTargetImageRows, lTargetImageCols = 100000, 100000    
+        for iImage in aImageSet: # find the largest image size in the set
+            if iImage.shape[0] < lTargetImageRows: lTargetImageRows = iImage.shape[0]
+            if iImage.shape[1] < lTargetImageCols: lTargetImageCols = iImage.shape[1]     
+    for iImageIndex in range(len(aImageSet)): # now that we have the target sizes, resize everything to it
         aImageSet[iImageIndex] = exSki.exposure.rescale_intensity(aImageSet[iImageIndex], out_range = (0, 255)) # make them 8-bit to prevent memory problems
-        aImageSet[iImageIndex] = exSki.transform.resize(aImageSet[iImageIndex], (lMaxImageRows, lMaxImageCols), preserve_range=True).astype(int)
-    return aImageSet, lMaxImageRows, lMaxImageCols
+        aImageSet[iImageIndex] = exSki.transform.resize(aImageSet[iImageIndex], (lTargetImageRows, lTargetImageCols), preserve_range=True).astype(int)
+    return aImageSet, lTargetImageRows, lTargetImageCols
 
 def fDisplayImageAndItsHistogram(aImage, aTitle):
     lHistInfo = exSki.exposure.histogram(aImage, normalize=True)
