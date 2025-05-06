@@ -5,34 +5,40 @@ Skylar Suarez & Larry Baker
 
 Variable naming convention: lLocalVariable, fUserDefinedFunction, exExternalLibrary, aArgument, iIterator
 """
+#%% LIBRARY IMPORTS
 
-import skimage as exSki 
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegression
+import skimage as exSki # For basic image processing (filtering, histogram equalization) and GLCM analysis.
+
+import numpy as np # For matrix manipulation.
+from numpy import fft # For frequency filtering.
+
+import matplotlib.pyplot as plt # For plotting figures throughout.
+
+from sklearn.cluster import KMeans # For implementing K-Means clustering on the images before logistic regression.
+from sklearn.model_selection import train_test_split # For linear regression testing.
+from sklearn.preprocessing import StandardScaler # For use with the GLCM parameters.
+from sklearn.linear_model import LogisticRegression # For linear regression testing.
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.model_selection import cross_val_score
-from sklearn.metrics import accuracy_score
-from sklearn.decomposition import PCA
+from sklearn.model_selection import cross_val_score # For linear regression testing.
+from sklearn.metrics import accuracy_score # For evaluationg trained regression models.
+# from sklearn.decomposition import PCA
 
+#%% 
 def main():
-    # read in all tif images into a list
+    # Read in all tif images into a list.
     lImageSet = list(exSki.io.imread_collection('images/*.tif', {'as_gray': True}))
     
-    # show the entire collection for presentation purposes
+    # Show the entire collection for presentation purposes.
     # exSki.io.imshow_collection(lImageSet, plugin='matplotlib', cmap='gray')
     # exSki.io.show()
         
     lImageSet, lM, lN = fUpsizeImagesToLargestInSet(lImageSet)
     
-    # make the vector of whether the images have AB or not (1 = AB, 0 = no AB)
+    # Make the vector of whether the images have AB or not (1 = AB, 0 = no AB).
     lImageSetClassifications = np.ones(len(lImageSet), dtype=int)
     lImageSetClassifications[[5,6,13,14,21,22,28,29,33,34,36,37,38,39,41,42,44,45,46,47,48]] = 0
     
-    # display which images are AB and which are not
+    # Display which images are AB and which are not.
     plt.figure(figsize=(15, 1.5))
     plt.plot(range(len(lImageSet)), lImageSetClassifications, 'o')
     plt.xticks(range(len(lImageSet)))
@@ -40,24 +46,77 @@ def main():
     plt.title('1 = AB, 0 = no AB')
     plt.show()
     
-    #%% TESTING STUFF ON A SAMPLE IMAGE, for presentation purposes
+    #%% TESTING STUFF ON A SAMPLE IMAGE, for presentation purposes.
     lTestImage = lImageSet[9]
     
-    # try histogram equalization for higher contrast
-    # increasing contrast amplifies the speckling and makes kmeans worse
+    # Try histogram equalization for higher contrast -
+    # Increasing contrast amplifies the speckling and makes kmeans worse.
     lEqualizedImage = exSki.exposure.equalize_hist(lTestImage)
     fDisplayImageAndItsHistogram(lEqualizedImage, 'Equalized Test Image')
+    
+    # Trying frequency filtering of the sample image.
+    # Outputting frequency spectrum of image(s) to determine if frequency filtering is sensible. 
+    lTestFFTOutput = np.abs(fft.fftshift(fft.fft2(lTestImage))) # fft2() is 2D FFT, fftshift() used for same rationale as in MATLAB.
+    # exSki.io.imshow(np.log(testFFTOutput), cmap = 'Blues') # Log needs to be used here or else fft is uninterpretable.
+    # exSki.io.show()
+    
+    # From the above, frequency filtering may not be useful due to no clear pattern present in the spectrum.
+    # An attempted filtering with a high-pass built-in Butterworth filter was attempted.
+    lFreqFilteredImage = exSki.filters.butterworth(lTestImage, cutoff_frequency_ratio = 0.05, high_pass = False) 
+    # cutoff_frequency_ratio sets the cut-off freq. relative to FFT shape (i.e., relative to the whole sampled freq. range).
+    lFigure, lAxes = plt.subplots(1, 3)
+    lFigure.suptitle('Frequency Spectrum and Image Filtering with LPF')
+    lAxes[0].set_title('Freq Spectrum')
+    lAxes[0].imshow(np.log(lTestFFTOutput), cmap = 'Blues')
+    lAxes[1].set_title('Original')
+    lAxes[1].imshow(lTestImage, cmap = 'gray')
+    lAxes[2].set_title('Filtered')
+    lAxes[2].imshow(lFreqFilteredImage, cmap = 'gray')
+    plt.show()
+    # From the above, the results of filtering present a blurred image that appears superficially similar to a Gaussian-blurred image. 
+    
+    # Trying Laplacian of Gaussian on the frequency-filtered image to see which 'blob' regions would be detected by the method 
+    # (i.e., whether the plaque regions would stand out relative to the background by having clusters of identified blobs).
+    # Tried with a large sigma range (1 and 10) and several different thresholds (0.1, 0.3, 0.4, 0.5, 0.8, 0.9).
+    # The original, unmodified test image had nothing for any threshold value.
+    # 11604 "blobs" with threshold_rel of 0.1 were present on the equalized image with sigma values between 1 and 10, mean of 1.16.
+    # Decreased slightly for equalized image at 0.4, then at 0.5 about the same value, then from a few thousand we get 38 blobs at 0.8, mean sigma of 1.17, then at 0.9 
+    # 4 blobs with mean sigma of 1.12. The blobs detected in that case were just 
+    # Regardless, this approach is ineffective, since all it does is detect the large fluorescing plaques within the blob regions.
+    lBlobLog = exSki.feature.blob_log(lFreqFilteredImage, min_sigma = 1, max_sigma = 20, num_sigma = 20, threshold_rel = 0.8)
+    lFigure, lAxes = plt.subplots(1,1, layout = 'tight')
+    lFigure.suptitle('Attempt at LoG Blob Detection with a Frequency-Filtered Image')
+    lAxes.imshow(lFreqFilteredImage, cmap = 'gray')
+    for blob in lBlobLog:
+            y, x, r = blob
+            c = plt.Circle((x, y), r, color = 'red', linewidth=10, fill=True)
+            lAxes.add_patch(c)
        
-    # try a median filter to remove noise
+    # Try a median filter to remove noise.
     lMedImage = exSki.filters.median(lTestImage)
     fDisplayImageAndItsHistogram(lMedImage, 'Median Filtered Test Image')
     
-    # try a gaussian filter to lessen speckling impact
+    # Try a Gaussian filter to lessen speckling impact.
     lGaussSigma = 1
     lTestGaussImage = exSki.filters.gaussian(lTestImage, sigma=lGaussSigma)
     fDisplayImageAndItsHistogram(lTestGaussImage, f'Gaussian Filtered Test Image, sigma = {lGaussSigma}')
     
-    # try doing kmeans clustering to an image before and after gaussian filtering to compare
+    # Trying the Canny edge-detection algorithm. Trying on the histogram-equalized version of the test image.
+    imageEdges = exSki.feature.canny(lEqualizedImage, sigma = 1, low_threshold = 0.5, high_threshold = 0.7)
+    lFigure, lAxes = plt.subplots(1, 2, layout = 'compressed')
+    lFigure.suptitle('Attempt at Canny Edge Detection on the Image')
+    lAxes[0].imshow(lTestImage, cmap = 'gray')
+    lAxes[0].set_title('Original')
+    lAxes[1].imshow(imageEdges, cmap = 'gray')
+    lAxes[1].set_title('Edges Detected by Canny Edge Detection')
+    plt.show() 
+    # From the above, Canny edge detection does not appear to be an appropriate means of detecting areas of plaque.
+    # If the histogram-equalized image is used, a large number of edges are detected at various threshold and sigma values, whereas
+    # if the original is used, even more spurious edges are detected around pixels of noise. 
+    # The Gaussian similarly does not provide adequate results, as would be expected since Canny edge detection
+    # already performs a Gaussian blur to start.
+    
+    # Try doing kmeans clustering to an image before and after Gaussian filtering to compare.
     lKMeansTestImage = fDoKMeansClusteringOnImage(lTestImage, 2)
     lKMeansTestGaussImage = fDoKMeansClusteringOnImage(lTestGaussImage, 2)
     lFig, lAxes = plt.subplots(1,3, layout='tight')
@@ -71,7 +130,7 @@ def main():
         
     #%% FIRST TEST FOR CLASSIFICATION: GAUSS FILTERING -> KMEANS CLUSTERING -> LOGISTIC REGRESSION and DECISION TREE 
 
-    # make the KMeans cluster set be a matrix where each column is the clustering of an image that has been gauss filtered
+    # Make the KMeans cluster set be a matrix where each column is the clustering of an image that has been Gaussian filtered.
     lKMeansClusterSet = np.zeros((lM*lN, len(lImageSet)))
     for iImageIndex in range(len(lImageSet)):
         lGaussImage = exSki.filters.gaussian(lImageSet[iImageIndex], lGaussSigma) 
@@ -80,34 +139,34 @@ def main():
         lKMeansClusterSet[:, iImageIndex] = lKMeansClusteredImage[:, 0]
     
     lKMeansClusterSet = StandardScaler().fit_transform(lKMeansClusterSet)
-    lKMeansClusterSet = lKMeansClusterSet.transpose() # make each row an image whose clusterings are the features
+    lKMeansClusterSet = lKMeansClusterSet.transpose() # Make each row an image whose clusterings are the features.
     
-    # split the KMeans Cluster Data into train and test sets
+    # Split the KMeans Cluster Data into train and test sets.
     lKMCTrainDataSet, lKMCTestDataSet, lKMCTrainClassSet, lKMCTestClassSet = train_test_split(lKMeansClusterSet, lImageSetClassifications, train_size=0.8)
     
-    # do the Logistic Regression Classification with 5 fold cross validation
+    # Do the Logistic Regression Classification with 5 fold cross validation.
     lKMC_LRPredLabels, lKMC_LRPredictedProbabilities, lKMC_LRAccuracyScore = fDoCVLogisticRegressionClassification(lKMCTrainDataSet, lKMCTrainClassSet, lKMCTestDataSet, lKMCTestClassSet, 5)
     
-    # plot the predicted vs true classifications
+    # Plot the predicted vs true classifications.
     fPlotPredictionsVsTruth(lKMC_LRPredictedProbabilities, lKMCTestClassSet, lKMC_LRAccuracyScore, "Logistic Regression on K-Means Clusters")
     
-    # do the Decision Tree Classification with 5 fold cross validation
+    # Do the Decision Tree Classification with 5 fold cross validation.
     lKMC_DTPredLabels, lKMC_DTPredictedProbabilities, lKMC_DTAccuracyScore = fDoCVDecisionTreeClassification(lKMCTrainDataSet, lKMCTrainClassSet, lKMCTestDataSet, lKMCTestClassSet, 5)
     
-    # plot the predicted vs true classifications
+    # Plot the predicted vs true classifications.
     fPlotPredictionsVsTruth(lKMC_DTPredictedProbabilities, lKMCTestClassSet, lKMC_DTAccuracyScore, "Decision Tree on K-Means Clustering")
     
     
-    #%% SECOND TEST FOR CLASSIFICATION: GRAY-LEVEL CO-OCCURRENCE MATRIX TEXTURE PROPERTIES -> LOGISTIC REGRESSION
+    #%% SECOND TEST FOR CLASSIFICATION: GRAY-LEVEL CO-OCCURRENCE MATRIX TEXTURE PROPERTIES -> LOGISTIC REGRESSION and DECISION TREE
 
-    # setting the GLCM levels
+    # Setting the GLCM levels.
     lMaxIntLevel = 0;        
     for iImage in lImageSet:
         lCurrentMaxInt = np.max(iImage)
         if lCurrentMaxInt > lMaxIntLevel: lMaxIntLevel = lCurrentMaxInt
     lGLCMlevels = lMaxIntLevel + 1
     
-    # getting the GLCM properties for each image
+    # Getting the GLCM properties for each image.
     lGLCMSet = np.zeros((len(lImageSet), 5))  
     for iImageIndex in range(len(lImageSet)):
         lGLCM = exSki.feature.graycomatrix(lImageSet[iImageIndex], distances=[1], angles=[0], levels=lGLCMlevels)
@@ -117,23 +176,23 @@ def main():
         lGLCMSet[iImageIndex, 3] = exSki.feature.graycoprops(lGLCM, "dissimilarity")
         lGLCMSet[iImageIndex, 4] = exSki.feature.graycoprops(lGLCM, "homogeneity")
     
-    # standardize the GLCM data
+    # Standardize the GLCM data.
     lGLCMSet = StandardScaler().fit_transform(lGLCMSet)
     
-    # split the GLCM data into train and test sets
+    # Split the GLCM data into train and test sets.
     lGLCMTrainDataSet, lGLCMTestDataSet, lGLCMTrainClassSet, lGLCMTestClassSet = train_test_split(lGLCMSet, lImageSetClassifications, train_size=0.8)
     
-    # do the Logistic Regression Classification with 5 fold cross validation
+    # Do the Logistic Regression Classification with 5 fold cross validation.
     lGLCM_LRPredLabels, lGLCM_LRPredictedProbabilities, lGLCM_LRAccuracyScore = fDoCVLogisticRegressionClassification(lGLCMTrainDataSet, lGLCMTrainClassSet, lGLCMTestDataSet, lGLCMTestClassSet, 5)
     
-    # plot the predicted vs true classifications
+    # Plot the predicted vs true classifications.
     fPlotPredictionsVsTruth(lGLCM_LRPredictedProbabilities, lGLCMTestClassSet, lGLCM_LRAccuracyScore, "Logistic Regression on GLCM")
     
-    # do the Decision Tree Classification with 5 fold cross validation
-    lGLCM_LRPredLabels, lGLCM_LRPredictedProbabilities, lGLCM_LRAccuracyScore = fDoCVDecisionTreeClassification(lGLCMTrainDataSet, lGLCMTrainClassSet, lGLCMTestDataSet, lGLCMTestClassSet, 5)
+    # Do the Decision Tree Classification with 5 fold cross validation.
+    lGLCM_DTPredLabels, lGLCM_DTPredictedProbabilities, lGLCM_DTAccuracyScore = fDoCVDecisionTreeClassification(lGLCMTrainDataSet, lGLCMTrainClassSet, lGLCMTestDataSet, lGLCMTestClassSet, 5)
     
-    # plot the predicted vs true classifications
-    fPlotPredictionsVsTruth(lGLCM_LRPredictedProbabilities, lGLCMTestClassSet, lGLCM_LRAccuracyScore, "Decision Tree on GLCM")
+    # Plot the predicted vs true classifications.
+    fPlotPredictionsVsTruth(lGLCM_DTPredictedProbabilities, lGLCMTestClassSet, lGLCM_DTAccuracyScore, "Decision Tree on GLCM")
     
 
 #%% FUNCTIONS
@@ -196,33 +255,6 @@ def fPlotPredictionsVsTruth(aLRPredictedProbabilities, aTrueClassifications, aLR
     plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.35))
     plt.show()
     
-# def fDoPCAAnalysis(aDataFrame):
-#     lPCAModel = PCA()
-#     lPCAModel.fit_transform(aDataFrame)
-#     lExplainedVarianceRatios = lPCAModel.explained_variance_ratio_ # list of % variance explained by each PC
-#     lExplainedVarianceRatiosSum = np.cumsum(lExplainedVarianceRatios) # ordered cummulative sum of % variance explained by each PC
-#     return lExplainedVarianceRatios, lExplainedVarianceRatiosSum, lPCAModel.components_
-
-# def fPlotVarianceExplainedByPCs(aExplainedVarianceRAtios, aExplainedVarianceRatiosSum, aTitle):
-#     # plot the PCs in descending order (higher explained variance first)
-#     lFigure = plt.figure()
-#     plt.bar(range(0,len(aExplainedVarianceRAtios)), aExplainedVarianceRAtios, alpha=0.5, align='center', label='Individual explained variance')
-#     plt.step(range(0,len(aExplainedVarianceRatiosSum)), aExplainedVarianceRatiosSum, where='mid',label='Cumulative explained variance')
-#     plt.ylabel('Explained variance ratio')
-#     plt.xlabel('Principal component index')
-#     plt.title(aTitle)
-#     plt.legend(loc='best')
-#     plt.tight_layout()
-#     plt.show()
-    
-# def fPlotFeatureContributionToFirst2PCs(aComponentDF, aDatasetDescription):
-#     lFig, lAxes = plt.subplots(ncols=2, nrows=1, layout='constrained', sharey=True)
-#     lAxes[0].barh(aComponentDF.columns, aComponentDF.iloc[0], color='red', label='impact on 1st PC')
-#     lAxes[1].barh(aComponentDF.columns, aComponentDF.iloc[1], color='blue', label='impact on 2nd PC')
-#     lFig.suptitle(f'{aDatasetDescription} Dataset, 1st 2 PCs')
-#     lFig.legend()
-#     lFig.show()
-
     
 if __name__=="__main__":
     main()

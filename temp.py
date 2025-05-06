@@ -149,17 +149,31 @@ GLCM_contrast_rand = ski.feature.graycoprops(lGLCM_rand, 'contrast')
 # plt.show()
 
 
+# def fDoPCAAnalysis(aDataFrame):
+#     lPCAModel = PCA()
+#     lPCAModel.fit_transform(aDataFrame)
+#     lExplainedVarianceRatios = lPCAModel.explained_variance_ratio_ # list of % variance explained by each PC
+#     lExplainedVarianceRatiosSum = np.cumsum(lExplainedVarianceRatios) # ordered cummulative sum of % variance explained by each PC
+#     return lExplainedVarianceRatios, lExplainedVarianceRatiosSum, lPCAModel.components_
 
-# # Canny edge-detection algorithm. Trying on the gamma-corrected, histogram-equalized version of the image.
-# # TODO: Figure out a good way to clean the images such that we get more sensible edge-detection.
-# # Or disregard edge-detection for another approach.
-# imageEdges = ski.feature.canny( [], sigma = 1, low_threshold = 0.1, high_threshold = 0.8)
-# figure, axes = plt.subplots(nrows = 1, ncols = 2)
-# axes[0].imshow(testImage)
-# axes[0].set_title('Original')
-# axes[1].imshow(imageEdges)
-# axes[1].set_title('Edges Detected by Canny')
-# plt.show()
-
+# def fPlotVarianceExplainedByPCs(aExplainedVarianceRAtios, aExplainedVarianceRatiosSum, aTitle):
+#     # plot the PCs in descending order (higher explained variance first)
+#     lFigure = plt.figure()
+#     plt.bar(range(0,len(aExplainedVarianceRAtios)), aExplainedVarianceRAtios, alpha=0.5, align='center', label='Individual explained variance')
+#     plt.step(range(0,len(aExplainedVarianceRatiosSum)), aExplainedVarianceRatiosSum, where='mid',label='Cumulative explained variance')
+#     plt.ylabel('Explained variance ratio')
+#     plt.xlabel('Principal component index')
+#     plt.title(aTitle)
+#     plt.legend(loc='best')
+#     plt.tight_layout()
+#     plt.show()
+    
+# def fPlotFeatureContributionToFirst2PCs(aComponentDF, aDatasetDescription):
+#     lFig, lAxes = plt.subplots(ncols=2, nrows=1, layout='constrained', sharey=True)
+#     lAxes[0].barh(aComponentDF.columns, aComponentDF.iloc[0], color='red', label='impact on 1st PC')
+#     lAxes[1].barh(aComponentDF.columns, aComponentDF.iloc[1], color='blue', label='impact on 2nd PC')
+#     lFig.suptitle(f'{aDatasetDescription} Dataset, 1st 2 PCs')
+#     lFig.legend()
+#     lFig.show()
 
     
