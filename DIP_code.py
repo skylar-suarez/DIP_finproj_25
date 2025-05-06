@@ -76,20 +76,19 @@ def main():
     
     # Trying Laplacian of Gaussian on the frequency-filtered image to see which 'blob' regions would be detected by the method 
     # (i.e., whether the plaque regions would stand out relative to the background by having clusters of identified blobs).
-    # Tried with a large sigma range (1 and 10) and several different thresholds (0.1, 0.3, 0.4, 0.5, 0.8, 0.9).
-    # The original, unmodified test image had nothing for any threshold value.
-    # 11604 "blobs" with threshold_rel of 0.1 were present on the equalized image with sigma values between 1 and 10, mean of 1.16.
-    # Decreased slightly for equalized image at 0.4, then at 0.5 about the same value, then from a few thousand we get 38 blobs at 0.8, mean sigma of 1.17, then at 0.9 
-    # 4 blobs with mean sigma of 1.12. The blobs detected in that case were just 
-    # Regardless, this approach is ineffective, since all it does is detect the large fluorescing plaques within the blob regions.
-    lBlobLog = exSki.feature.blob_log(lFreqFilteredImage, min_sigma = 1, max_sigma = 20, num_sigma = 20, threshold_rel = 0.8)
-    lFigure, lAxes = plt.subplots(1,1, layout = 'tight')
+    lBlobLog = exSki.feature.blob_log(lFreqFilteredImage, min_sigma = 1, max_sigma = 20, num_sigma = 20, threshold_rel = 0.4)
+    lFigure, lAxes = plt.subplots(1,2, layout = 'tight')
     lFigure.suptitle('LoG Blob Detection with a Frequency-Filtered Sample Image')
-    lAxes.imshow(lFreqFilteredImage, cmap = 'gray')
+    lAxes[0].set_title('Original')
+    lAxes[0].imshow(lSampleImage, cmap = 'gray')
+    lAxes[1].set_title('Freq-Filtered')
+    lAxes[1].imshow(lFreqFilteredImage, cmap = 'gray')
     for blob in lBlobLog:
             y, x, r = blob
-            c = plt.Circle((x, y), r, color = 'red', linewidth=10, fill=True)
-            lAxes.add_patch(c)
+            c_orig = plt.Circle((x, y), r, color = 'red', linewidth=1, fill=False)
+            lAxes[0].add_patch(c_orig)
+            c_freq = plt.Circle((x, y), r, color = 'red', linewidth=1, fill=False)
+            lAxes[1].add_patch(c_freq)
        
     # Try a median filter to remove noise.
     lMedImage = exSki.filters.median(lSampleImage)
@@ -100,10 +99,10 @@ def main():
     lTestGaussImage = exSki.filters.gaussian(lSampleImage, sigma=lGaussSigma)
     fDisplayImageAndItsHistogram(lTestGaussImage, f'Gaussian Filtered Test Image, sigma = {lGaussSigma}')
     
-    # Trying the Canny edge-detection algorithm. Trying on the histogram-equalized version of the test image.
-    imageEdges = exSki.feature.canny(lEqualizedImage, sigma = 1, low_threshold = 0.5, high_threshold = 0.7)
+    # Trying the Canny edge-detection algorithm. Trying on the freqency-filtered version of the sample image.
+    imageEdges = exSki.feature.canny(lFreqFilteredImage, sigma = 8, low_threshold = 0.8, high_threshold = 1)
     lFigure, lAxes = plt.subplots(1, 2, layout = 'compressed')
-    lFigure.suptitle('Canny Edge Detection on the  Sample Image')
+    lFigure.suptitle('Canny Edge Detection on the Sample Image')
     lAxes[0].imshow(lSampleImage, cmap = 'gray')
     lAxes[0].set_title('Original')
     lAxes[1].imshow(imageEdges, cmap = 'gray')
