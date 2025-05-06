@@ -61,7 +61,7 @@ def main():
     
     # From the above, frequency filtering may not be useful due to no clear pattern present in the spectrum.
     # An attempted filtering with a high-pass built-in Butterworth filter was attempted.
-    lFreqFilteredImage = exSki.filters.butterworth(lSampleImage, cutoff_frequency_ratio = 0.075, high_pass = False) 
+    lFreqFilteredImage = exSki.filters.butterworth(lSampleImage, cutoff_frequency_ratio = 0.1, high_pass = False) 
     # cutoff_frequency_ratio sets the cut-off freq. relative to FFT shape (i.e., relative to the whole sampled freq. range).
     lFigure, lAxes = plt.subplots(1, 3)
     lFigure.suptitle('Frequency Spectrum and Filtering with LPF on Sample Image')
@@ -134,7 +134,7 @@ def main():
     lKMeansClusterSet = np.zeros((lM*lN, len(lImageSet)))
     for iImageIndex in range(len(lImageSet)):
         # lGaussImage = exSki.filters.gaussian(lImageSet[iImageIndex], lGaussSigma)
-        lFreqFilteredImage = exSki.filters.butterworth(lImageSet[iImageIndex], cutoff_frequency_ratio = 0.075, high_pass = False)
+        lFreqFilteredImage = exSki.filters.butterworth(lImageSet[iImageIndex], cutoff_frequency_ratio = 0.1, high_pass = False)
         lKMeansClusteredImage = fDoKMeansClusteringOnImage(lFreqFilteredImage, 2)
         lKMeansClusteredImage = lKMeansClusteredImage.reshape(-1, 1)
         lKMeansClusterSet[:, iImageIndex] = lKMeansClusteredImage[:, 0]
