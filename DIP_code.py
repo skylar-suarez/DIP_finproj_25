@@ -46,29 +46,29 @@ def main():
     plt.show()
     
     #%% TESTING STUFF ON A SAMPLE IMAGE, for presentation purposes.
-    lTestImage = lImageSet[15]
+    lSampleImage = lImageSet[15]
     
     # Try histogram equalization for higher contrast -
     # Increasing contrast amplifies the speckling and makes kmeans worse.
-    lEqualizedImage = exSki.exposure.equalize_hist(lTestImage)
-    fDisplayImageAndItsHistogram(lEqualizedImage, 'Equalized Test Image')
+    lEqualizedImage = exSki.exposure.equalize_hist(lSampleImage)
+    fDisplayImageAndItsHistogram(lEqualizedImage, 'Equalized Sample Image')
     
     # Trying frequency filtering of the sample image.
     # Outputting frequency spectrum of image(s) to determine if frequency filtering is sensible. 
-    lTestFFTOutput = np.abs(fft.fftshift(fft.fft2(lTestImage))) # fft2() is 2D FFT, fftshift() used for same rationale as in MATLAB.
+    lTestFFTOutput = np.abs(fft.fftshift(fft.fft2(lSampleImage))) # fft2() is 2D FFT, fftshift() used for same rationale as in MATLAB.
     # exSki.io.imshow(np.log(testFFTOutput), cmap = 'Blues') # Log needs to be used here or else fft is uninterpretable.
     # exSki.io.show()
     
     # From the above, frequency filtering may not be useful due to no clear pattern present in the spectrum.
     # An attempted filtering with a high-pass built-in Butterworth filter was attempted.
-    lFreqFilteredImage = exSki.filters.butterworth(lTestImage, cutoff_frequency_ratio = 0.05, high_pass = False) 
+    lFreqFilteredImage = exSki.filters.butterworth(lSampleImage, cutoff_frequency_ratio = 0.075, high_pass = False) 
     # cutoff_frequency_ratio sets the cut-off freq. relative to FFT shape (i.e., relative to the whole sampled freq. range).
     lFigure, lAxes = plt.subplots(1, 3)
-    lFigure.suptitle('Frequency Spectrum and Image Filtering with LPF')
+    lFigure.suptitle('Frequency Spectrum and Filtering with LPF on Sample Image')
     lAxes[0].set_title('Freq Spectrum')
     lAxes[0].imshow(np.log(lTestFFTOutput), cmap = 'Blues')
     lAxes[1].set_title('Original')
-    lAxes[1].imshow(lTestImage, cmap = 'gray')
+    lAxes[1].imshow(lSampleImage, cmap = 'gray')
     lAxes[2].set_title('Filtered')
     lAxes[2].imshow(lFreqFilteredImage, cmap = 'gray')
     plt.show()
@@ -84,7 +84,7 @@ def main():
     # Regardless, this approach is ineffective, since all it does is detect the large fluorescing plaques within the blob regions.
     lBlobLog = exSki.feature.blob_log(lFreqFilteredImage, min_sigma = 1, max_sigma = 20, num_sigma = 20, threshold_rel = 0.8)
     lFigure, lAxes = plt.subplots(1,1, layout = 'tight')
-    lFigure.suptitle('Attempt at LoG Blob Detection with a Frequency-Filtered Image')
+    lFigure.suptitle('LoG Blob Detection with a Frequency-Filtered Sample Image')
     lAxes.imshow(lFreqFilteredImage, cmap = 'gray')
     for blob in lBlobLog:
             y, x, r = blob
@@ -92,19 +92,19 @@ def main():
             lAxes.add_patch(c)
        
     # Try a median filter to remove noise.
-    lMedImage = exSki.filters.median(lTestImage)
-    fDisplayImageAndItsHistogram(lMedImage, 'Median Filtered Test Image')
+    lMedImage = exSki.filters.median(lSampleImage)
+    fDisplayImageAndItsHistogram(lMedImage, 'Median Filtered Sample Image')
     
     # Try a Gaussian filter to lessen speckling impact.
     lGaussSigma = 1
-    lTestGaussImage = exSki.filters.gaussian(lTestImage, sigma=lGaussSigma)
+    lTestGaussImage = exSki.filters.gaussian(lSampleImage, sigma=lGaussSigma)
     fDisplayImageAndItsHistogram(lTestGaussImage, f'Gaussian Filtered Test Image, sigma = {lGaussSigma}')
     
     # Trying the Canny edge-detection algorithm. Trying on the histogram-equalized version of the test image.
     imageEdges = exSki.feature.canny(lEqualizedImage, sigma = 1, low_threshold = 0.5, high_threshold = 0.7)
     lFigure, lAxes = plt.subplots(1, 2, layout = 'compressed')
-    lFigure.suptitle('Attempt at Canny Edge Detection on the Image')
-    lAxes[0].imshow(lTestImage, cmap = 'gray')
+    lFigure.suptitle('Canny Edge Detection on the  Sample Image')
+    lAxes[0].imshow(lSampleImage, cmap = 'gray')
     lAxes[0].set_title('Original')
     lAxes[1].imshow(imageEdges, cmap = 'gray')
     lAxes[1].set_title('Edges Detected by Canny Edge Detection')
@@ -115,25 +115,28 @@ def main():
     # The Gaussian similarly does not provide adequate results, as would be expected since Canny edge detection
     # already performs a Gaussian blur to start.
     
-    # Try doing kmeans clustering to an image before and after Gaussian filtering to compare.
-    lKMeansTestImage = fDoKMeansClusteringOnImage(lTestImage, 2)
-    lKMeansTestGaussImage = fDoKMeansClusteringOnImage(lTestGaussImage, 2)
+    # Try doing kmeans clustering to an image before and after low pass frequency filtering to compare.
+    lKMeansTestImage = fDoKMeansClusteringOnImage(lSampleImage, 2)
+    lKMeansTestGaussImage = fDoKMeansClusteringOnImage(lFreqFilteredImage, 2)
     lFig, lAxes = plt.subplots(1,3, layout='tight')
-    lAxes[0].imshow(lTestImage, cmap='gray')
-    lAxes[0].set_title('Test Image')
+    lAxes[0].imshow(lSampleImage, cmap='gray')
+    lAxes[0].set_title('Sample Image')
     lAxes[1].imshow(lKMeansTestImage, cmap='plasma')
-    lAxes[1].set_title('Clusters of Test Image')
+    lAxes[1].set_title('Clusters of Sample Image')
     lAxes[2].imshow(lKMeansTestGaussImage, cmap='plasma')
-    lAxes[2].set_title(f'Clusters of Gaussian Filtered\nTest Image (sigma={lGaussSigma})')
+    lAxes[2].set_title(f'Clusters of Low Pass\nFiltered Sample Image)')
     plt.show()
         
-    #%% FIRST TEST FOR CLASSIFICATION: GAUSS FILTERING -> KMEANS CLUSTERING -> LOGISTIC REGRESSION and DECISION TREE 
+    #%% FIRST TEST FOR CLASSIFICATION: GAUSS/LPF FILTERING -> KMEANS CLUSTERING -> LOGISTIC REGRESSION and DECISION TREE 
+    
+    lNumOfKFoldsForCV = 10
 
     # Make the KMeans cluster set be a matrix where each column is the clustering of an image that has been Gaussian filtered.
     lKMeansClusterSet = np.zeros((lM*lN, len(lImageSet)))
     for iImageIndex in range(len(lImageSet)):
-        lGaussImage = exSki.filters.gaussian(lImageSet[iImageIndex], lGaussSigma) 
-        lKMeansClusteredImage = fDoKMeansClusteringOnImage(lGaussImage, 2)
+        # lGaussImage = exSki.filters.gaussian(lImageSet[iImageIndex], lGaussSigma)
+        lFreqFilteredImage = exSki.filters.butterworth(lImageSet[iImageIndex], cutoff_frequency_ratio = 0.075, high_pass = False)
+        lKMeansClusteredImage = fDoKMeansClusteringOnImage(lFreqFilteredImage, 2)
         lKMeansClusteredImage = lKMeansClusteredImage.reshape(-1, 1)
         lKMeansClusterSet[:, iImageIndex] = lKMeansClusteredImage[:, 0]
     
@@ -144,13 +147,13 @@ def main():
     lKMCTrainDataSet, lKMCTestDataSet, lKMCTrainClassSet, lKMCTestClassSet = train_test_split(lKMeansClusterSet, lImageSetClassifications, train_size=0.8)
     
     # Do the Logistic Regression Classification with 5 fold cross validation.
-    lKMC_LRPredLabels, lKMC_LRPredictedProbabilities, lKMC_LRAccuracyScore = fDoCVLogisticRegressionClassification(lKMCTrainDataSet, lKMCTrainClassSet, lKMCTestDataSet, lKMCTestClassSet, 5)
+    lKMC_LRPredLabels, lKMC_LRPredictedProbabilities, lKMC_LRAccuracyScore = fDoCVLogisticRegressionClassification(lKMCTrainDataSet, lKMCTrainClassSet, lKMCTestDataSet, lKMCTestClassSet, lNumOfKFoldsForCV)
     
     # Plot the predicted vs true classifications.
     fPlotPredictionsVsTruth(lKMC_LRPredictedProbabilities, lKMCTestClassSet, lKMC_LRAccuracyScore, "Logistic Regression on K-Means Clusters")
     
     # Do the Decision Tree Classification with 5 fold cross validation.
-    lKMC_DTPredLabels, lKMC_DTPredictedProbabilities, lKMC_DTAccuracyScore = fDoCVDecisionTreeClassification(lKMCTrainDataSet, lKMCTrainClassSet, lKMCTestDataSet, lKMCTestClassSet, 5)
+    lKMC_DTPredLabels, lKMC_DTPredictedProbabilities, lKMC_DTAccuracyScore = fDoCVDecisionTreeClassification(lKMCTrainDataSet, lKMCTrainClassSet, lKMCTestDataSet, lKMCTestClassSet, lNumOfKFoldsForCV)
     
     # Plot the predicted vs true classifications.
     fPlotPredictionsVsTruth(lKMC_DTPredictedProbabilities, lKMCTestClassSet, lKMC_DTAccuracyScore, "Decision Tree on K-Means Clustering")
@@ -182,13 +185,13 @@ def main():
     lGLCMTrainDataSet, lGLCMTestDataSet, lGLCMTrainClassSet, lGLCMTestClassSet = train_test_split(lGLCMSet, lImageSetClassifications, train_size=0.8)
     
     # Do the Logistic Regression Classification with 5 fold cross validation.
-    lGLCM_LRPredLabels, lGLCM_LRPredictedProbabilities, lGLCM_LRAccuracyScore = fDoCVLogisticRegressionClassification(lGLCMTrainDataSet, lGLCMTrainClassSet, lGLCMTestDataSet, lGLCMTestClassSet, 5)
+    lGLCM_LRPredLabels, lGLCM_LRPredictedProbabilities, lGLCM_LRAccuracyScore = fDoCVLogisticRegressionClassification(lGLCMTrainDataSet, lGLCMTrainClassSet, lGLCMTestDataSet, lGLCMTestClassSet, lNumOfKFoldsForCV)
     
     # Plot the predicted vs true classifications.
     fPlotPredictionsVsTruth(lGLCM_LRPredictedProbabilities, lGLCMTestClassSet, lGLCM_LRAccuracyScore, "Logistic Regression on GLCM")
     
     # Do the Decision Tree Classification with 5 fold cross validation.
-    lGLCM_DTPredLabels, lGLCM_DTPredictedProbabilities, lGLCM_DTAccuracyScore = fDoCVDecisionTreeClassification(lGLCMTrainDataSet, lGLCMTrainClassSet, lGLCMTestDataSet, lGLCMTestClassSet, 5)
+    lGLCM_DTPredLabels, lGLCM_DTPredictedProbabilities, lGLCM_DTAccuracyScore = fDoCVDecisionTreeClassification(lGLCMTrainDataSet, lGLCMTrainClassSet, lGLCMTestDataSet, lGLCMTestClassSet, lNumOfKFoldsForCV)
     
     # Plot the predicted vs true classifications.
     fPlotPredictionsVsTruth(lGLCM_DTPredictedProbabilities, lGLCMTestClassSet, lGLCM_DTAccuracyScore, "Decision Tree on GLCM")
@@ -223,7 +226,7 @@ def fDisplayImageAndItsHistogram(aImage, aTitle):
 def fDoKMeansClusteringOnImage(aImage, aK):
     lImageShape = aImage.shape
     lImage = aImage.reshape(-1,1)
-    lKMeansModel = KMeans(n_clusters=aK, random_state=42)
+    lKMeansModel = KMeans(n_clusters=aK)
     lKMeansModel.fit(lImage)
     return lKMeansModel.predict(lImage).reshape(lImageShape)
 
@@ -251,7 +254,7 @@ def fPlotPredictionsVsTruth(aLRPredictedProbabilities, aTrueClassifications, aLR
     plt.figure()
     plt.plot(range(len(aLRPredictedProbabilities)), aLRPredictedProbabilities[:,0], 'o', label='probability of class 0 membership')
     plt.plot(range(len(aLRPredictedProbabilities)), aLRPredictedProbabilities[:,1], 'o', label='probability class 1 membership')
-    plt.plot(range(len(aLRPredictedProbabilities)), aTrueClassifications, '*', markersize=15, label='true classification')
+    plt.plot(range(len(aLRPredictedProbabilities)), aTrueClassifications, '*', fillstyle='none', markersize=20, label='true classification')
     plt.title(f"{aDatasetName}, Test Set Prediction Performance\nAccuracy Score = {np.round(aLRAccuracyScore, 2)}")
     plt.hlines(y=0.5, xmin=0, xmax=10, colors='k')
     plt.xlabel("Test Image")
